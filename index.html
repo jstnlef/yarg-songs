@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Justin's YARG Songs</title><style>
+:root{--bg:#1A1520;--fg:#F2EDE4;--o:#FF7A1A;--p:#C084FC;--row:#231c2b;--line:#3a2f45}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,sans-serif}
+header{padding:16px;position:sticky;top:0;background:var(--bg);border-bottom:2px solid var(--o);z-index:2}
+h1{margin:0 0 10px;font-size:1.4em;color:var(--o)}h1 span{color:var(--p)}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input,select,button{background:var(--row);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px;font:inherit}
+input{flex:1 1 240px}input:focus,select:focus{outline:2px solid var(--p)}
+#count{color:var(--p);font-weight:600}
+table{width:100%;border-collapse:collapse}th{position:sticky;top:0;text-align:left;cursor:pointer;color:var(--o);padding:8px;border-bottom:1px solid var(--line);user-select:none;white-space:nowrap}
+th.s::after{content:" ▲";color:var(--p)}th.s.d::after{content:" ▼"}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}tr:nth-child(even) td{background:var(--row)}
+main{padding:0 16px 16px}.pg{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px}
+button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:hover:not(:disabled){border-color:var(--o)}
+.src{color:var(--p);font-size:.9em}
+@media(max-width:700px){thead{display:none}table,tbody,tr,td{display:block}tr{border-bottom:1px solid var(--line);padding:6px 0}
+td{border:0;padding:2px 4px;background:none!important}td:before{content:attr(data-l)": ";color:var(--o);font-size:.85em}
+.sortm{display:inline-block}}
+@media(min-width:701px){.sortm{display:none}}
+</style></head><body>
+<header><h1>Justin's <span>YARG</span> Songs</h1><div class="ctl">
+<input id="q" type="search" placeholder="Search artist, title, album, genre, charter…" autofocus>
+<select id="fs"><option value="">All sources</option></select><select id="fg"><option value="">All genres</option></select>
+<select id="sm" class="sortm"></select><span id="count">Loading…</span></div></header>
+<main><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table>
+<div class="pg"><button id="pv">‹ Prev</button><span id="pi"></span><button id="nx">Next ›</button>
+<select id="ps"><option>100</option><option selected>250</option><option>500</option><option>1000</option></select></div></main>
+<script>
+const C=[["artist","Artist"],["title","Title"],["album","Album"],["year","Year"],["genre","Genre"],["charter","Charter"],["source_folder","Source"]];
+let D=[],F=[],sk="artist",sd=1,page=0,$=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const col=new Intl.Collator(undefined,{sensitivity:"base",numeric:true});
+$("hd").innerHTML=C.map(([k,l])=>`<th data-k="${k}">${l}</th>`).join("");
+$("sm").innerHTML=C.flatMap(([k,l])=>[`<option value="${k}|1">Sort: ${l} ↑</option>`,`<option value="${k}|-1">Sort: ${l} ↓</option>`]).join("");
+$("hd").onclick=e=>{const k=e.target.dataset.k;if(!k)return;sd=sk===k?-sd:1;sk=k;run()};
+$("sm").onchange=e=>{const[k,d]=e.target.value.split("|");sk=k;sd=+d;run()};
+function run(){const q=$("q").value.toLowerCase().trim().split(/\s+/).filter(Boolean),s=$("fs").value,g=$("fg").value;
+F=D.filter(r=>(!s||r.source_folder===s)&&(!g||r.genre===g)&&q.every(t=>r._h.includes(t)));
+F.sort((a,b)=>sk==="year"?((+a.year||9e9)-(+b.year||9e9))*sd||col.compare(a.artist,b.artist):col.compare(a[sk]||"\uffff",b[sk]||"\uffff")*sd);
+document.querySelectorAll("th").forEach(t=>{t.className=t.dataset.k===sk?"s"+(sd<0?" d":""):""});$("sm").value=sk+"|"+sd;page=0;draw()}
+function draw(){const n=+$("ps").value,pages=Math.max(1,Math.ceil(F.length/n));page=Math.min(page,pages-1);
+$("tb").innerHTML=F.slice(page*n,page*n+n).map(r=>"<tr>"+C.map(([k,l])=>`<td data-l="${l}"${k==="source_folder"?' class="src"':""}>${esc(r[k]||"")}</td>`).join("")+"</tr>").join("");
+$("count").textContent=`${F.length.toLocaleString()} of ${D.length.toLocaleString()} songs`;$("pi").textContent=`Page ${page+1} / ${pages}`;
+$("pv").disabled=page===0;$("nx").disabled=page>=pages-1}
+$("pv").onclick=()=>{page--;draw();scrollTo(0,0)};$("nx").onclick=()=>{page++;draw();scrollTo(0,0)};$("ps").onchange=draw;
+let t;$("q").oninput=()=>{clearTimeout(t);t=setTimeout(run,120)};$("fs").onchange=run;$("fg").onchange=run;
+fetch("songs.json").then(r=>r.json()).then(j=>{D=j;D.forEach(r=>r._h=C.map(([k])=>r[k]||"").join(" ").toLowerCase());
+const opt=(id,k)=>{const m={};D.forEach(r=>{if(r[k])m[r[k]]=(m[r[k]]||0)+1});$(id).innerHTML+=Object.keys(m).sort(col.compare).map(v=>`<option value="${esc(v)}">${esc(v)} (${m[v]})</option>`).join("")};
+opt("fs","source_folder");opt("fg","genre");run()});
+</script></body></html>
