@@ -58,9 +58,9 @@ td{border:0;padding:2px 4px;background:none!important}td:before{content:attr(dat
 <select id="ps"><option>100</option><option selected>250</option><option>500</option><option>1000</option></select></div></main>
 <script>
 const C=[["artist","Artist"],["title","Title"],["added","Added"],["album","Album"],["year","Year"],["genre","Genre"],["charter","Charter"],["source_folder","Source"]];
-const ROCK_BAND_DAY={cutoff:"2026-05-03",label:"New since Rock Band Day (May 3, 2026)"};
+const YARG_DAY={cutoff:"2026-10-18",label:"New since YARG Day (Oct 18, 2026)"};
 let D=[],F=[],sk="added",sd=-1,page=0,onlyNew=false,$=id=>document.getElementById(id);
-$("nw").textContent=ROCK_BAND_DAY.label;$("nw").classList.add("show");
+$("nw").textContent=YARG_DAY.label;$("nw").classList.add("show");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const col=new Intl.Collator(undefined,{sensitivity:"base",numeric:true});
 $("hd").innerHTML=C.map(([k,l])=>`<th data-k="${k}">${l}</th>`).join("");
@@ -77,13 +77,13 @@ function cmp(a,b){
   return col.compare(a[sk]||"\uffff",b[sk]||"\uffff")*sd;
 }
 function run(){const q=$("q").value.toLowerCase().trim().split(/\s+/).filter(Boolean),s=$("fs").value,g=$("fg").value;
-F=D.filter(r=>(!s||r.source_folder===s)&&(!g||r.genre===g)&&(!onlyNew||r.added&&r.added>ROCK_BAND_DAY.cutoff)&&q.every(t=>r._h.includes(t)));
+F=D.filter(r=>(!s||r.source_folder===s)&&(!g||r.genre===g)&&(!onlyNew||r.added&&r.added>YARG_DAY.cutoff)&&q.every(t=>r._h.includes(t)));
 F.sort(cmp);
 document.querySelectorAll("th").forEach(t=>{t.className=t.dataset.k===sk?"s"+(sd<0?" d":""):""});$("sm").value=sk+"|"+sd;page=0;draw()}
 function draw(){const n=+$("ps").value,pages=Math.max(1,Math.ceil(F.length/n));page=Math.min(page,pages-1);
 $("tb").innerHTML=F.slice(page*n,page*n+n).map(r=>"<tr>"+C.map(([k,l])=>{
   const raw=r[k]||"",v=k==="added"?(raw||"—"):esc(raw),p=k==="source_folder"?"s":k==="genre"?"g":"";
-  const cls=[k===sk?"sc":"",k==="added"&&raw&&raw>ROCK_BAND_DAY.cutoff?"neu":""].filter(Boolean).join(" ");
+  const cls=[k===sk?"sc":"",k==="added"&&raw&&raw>YARG_DAY.cutoff?"neu":""].filter(Boolean).join(" ");
   return `<td data-l="${l}"${cls?` class="${cls}"`:""}>${p&&raw?`<span class="pill ${p}">${v}</span>`:v}</td>`;
 }).join("")+"</tr>").join("");
 $("count").textContent=`${F.length.toLocaleString()} of ${D.length.toLocaleString()} songs`;$("pi").textContent=`Page ${page+1} / ${pages}`;
