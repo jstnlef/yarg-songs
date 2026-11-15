@@ -24,6 +24,9 @@ select option{background:#1B1B1B}
 input{flex:1 1 240px}input::placeholder{color:#9A9A9A}
 input:focus,select:focus,button:focus-visible{outline:2px solid var(--red2);outline-offset:1px;border-color:var(--red2);box-shadow:0 0 0 3px rgba(224,16,47,.25)}
 #count{color:var(--mut);font-weight:700;letter-spacing:.03em}
+#nw{display:none;font-size:.82em;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);padding:7px 10px}
+#nw.show{display:inline-block}
+#nw.on{color:var(--redt);border-color:var(--red2);background:rgba(179,0,27,.15)}
 table{width:100%;border-collapse:collapse}
 th{position:sticky;top:0;text-align:left;cursor:pointer;color:var(--mut);padding:10px 8px;border-bottom:2px solid var(--steel);user-select:none;white-space:nowrap;text-transform:uppercase;font-size:.78em;letter-spacing:.1em;background:linear-gradient(180deg,#1E1E1E,#141414)}
 th:hover{color:var(--fg)}
@@ -31,6 +34,7 @@ th.s{color:var(--redt);border-bottom-color:var(--red2)}
 th.s::after{content:" ▲"}th.s.d::after{content:" ▼"}
 td{padding:7px 8px;border-bottom:1px solid #2A2B2E;vertical-align:top}
 td.sc{background:rgba(179,0,27,.10)}
+td.neu{color:var(--redt)}
 tbody tr:nth-child(even) td{background-color:rgba(255,255,255,.03)}
 tbody tr:hover td{background-color:rgba(255,255,255,.07)}
 tbody tr:hover{box-shadow:inset 3px 0 0 var(--red2)}
@@ -48,30 +52,47 @@ td{border:0;padding:2px 4px;background:none!important}td:before{content:attr(dat
 <header><h1>Locomotive of Fail — <span>YARG</span> Songs</h1><div class="ctl">
 <input id="q" type="search" placeholder="Search artist, title, album, genre, charter…" autofocus>
 <select id="fs"><option value="">All sources</option></select><select id="fg"><option value="">All genres</option></select>
-<select id="sm" class="sortm"></select><span id="count">Loading…</span></div></header>
+<select id="sm" class="sortm"></select><button id="nw" type="button"></button><span id="count">Loading…</span></div></header>
 <main><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table>
 <div class="pg"><button id="pv">‹ Prev</button><span id="pi"></span><button id="nx">Next ›</button>
 <select id="ps"><option>100</option><option selected>250</option><option>500</option><option>1000</option></select></div></main>
 <script>
-const C=[["artist","Artist"],["title","Title"],["album","Album"],["year","Year"],["genre","Genre"],["charter","Charter"],["source_folder","Source"]];
-let D=[],F=[],sk="artist",sd=1,page=0,$=id=>document.getElementById(id);
+const C=[["artist","Artist"],["title","Title"],["added","Added"],["album","Album"],["year","Year"],["genre","Genre"],["charter","Charter"],["source_folder","Source"]];
+let D=[],F=[],sk="added",sd=-1,page=0,latest="",onlyNew=false,$=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const col=new Intl.Collator(undefined,{sensitivity:"base",numeric:true});
 $("hd").innerHTML=C.map(([k,l])=>`<th data-k="${k}">${l}</th>`).join("");
 $("sm").innerHTML=C.flatMap(([k,l])=>[`<option value="${k}|1">Sort: ${l} ↑</option>`,`<option value="${k}|-1">Sort: ${l} ↓</option>`]).join("");
 $("hd").onclick=e=>{const k=e.target.dataset.k;if(!k)return;sd=sk===k?-sd:1;sk=k;run()};
 $("sm").onchange=e=>{const[k,d]=e.target.value.split("|");sk=k;sd=+d;run()};
+function cmp(a,b){
+  if(sk==="added"){
+    const ae=!a.added,be=!b.added;
+    if(ae!==be)return ae?1:-1;
+    return col.compare(a.added,b.added)*sd||col.compare(a.artist,b.artist)||col.compare(a.title,b.title);
+  }
+  if(sk==="year")return((+a.year||9e9)-(+b.year||9e9))*sd||col.compare(a.artist,b.artist);
+  return col.compare(a[sk]||"\uffff",b[sk]||"\uffff")*sd;
+}
 function run(){const q=$("q").value.toLowerCase().trim().split(/\s+/).filter(Boolean),s=$("fs").value,g=$("fg").value;
-F=D.filter(r=>(!s||r.source_folder===s)&&(!g||r.genre===g)&&q.every(t=>r._h.includes(t)));
-F.sort((a,b)=>sk==="year"?((+a.year||9e9)-(+b.year||9e9))*sd||col.compare(a.artist,b.artist):col.compare(a[sk]||"\uffff",b[sk]||"\uffff")*sd);
+F=D.filter(r=>(!s||r.source_folder===s)&&(!g||r.genre===g)&&(!onlyNew||r.added===latest)&&q.every(t=>r._h.includes(t)));
+F.sort(cmp);
 document.querySelectorAll("th").forEach(t=>{t.className=t.dataset.k===sk?"s"+(sd<0?" d":""):""});$("sm").value=sk+"|"+sd;page=0;draw()}
 function draw(){const n=+$("ps").value,pages=Math.max(1,Math.ceil(F.length/n));page=Math.min(page,pages-1);
-$("tb").innerHTML=F.slice(page*n,page*n+n).map(r=>"<tr>"+C.map(([k,l])=>{const v=esc(r[k]||""),p=k==="source_folder"?"s":k==="genre"?"g":"";return `<td data-l="${l}"${k===sk?' class="sc"':""}>${p&&v?`<span class="pill ${p}">${v}</span>`:v}</td>`}).join("")+"</tr>").join("");
+$("tb").innerHTML=F.slice(page*n,page*n+n).map(r=>"<tr>"+C.map(([k,l])=>{
+  const raw=r[k]||"",v=k==="added"?(raw||"—"):esc(raw),p=k==="source_folder"?"s":k==="genre"?"g":"";
+  const cls=[k===sk?"sc":"",k==="added"&&raw&&raw===latest?"neu":""].filter(Boolean).join(" ");
+  return `<td data-l="${l}"${cls?` class="${cls}"`:""}>${p&&raw?`<span class="pill ${p}">${v}</span>`:v}</td>`;
+}).join("")+"</tr>").join("");
 $("count").textContent=`${F.length.toLocaleString()} of ${D.length.toLocaleString()} songs`;$("pi").textContent=`Page ${page+1} / ${pages}`;
 $("pv").disabled=page===0;$("nx").disabled=page>=pages-1}
 $("pv").onclick=()=>{page--;draw();scrollTo(0,0)};$("nx").onclick=()=>{page++;draw();scrollTo(0,0)};$("ps").onchange=draw;
+$("nw").onclick=()=>{onlyNew=!onlyNew;$("nw").classList.toggle("on",onlyNew);run()};
 let t;$("q").oninput=()=>{clearTimeout(t);t=setTimeout(run,120)};$("fs").onchange=run;$("fg").onchange=run;
 fetch("songs.json").then(r=>r.json()).then(j=>{D=j;D.forEach(r=>r._h=C.map(([k])=>r[k]||"").join(" ").toLowerCase());
 const opt=(id,k)=>{const m={};D.forEach(r=>{if(r[k])m[r[k]]=(m[r[k]]||0)+1});$(id).innerHTML+=Object.keys(m).sort(col.compare).map(v=>`<option value="${esc(v)}">${esc(v)} (${m[v]})</option>`).join("")};
-opt("fs","source_folder");opt("fg","genre");run()});
+opt("fs","source_folder");opt("fg","genre");
+latest=D.reduce((m,r)=>r.added&&r.added>m?r.added:m,"");
+if(latest){$("nw").textContent="New since "+latest;$("nw").classList.add("show")}
+run()});
 </script></body></html>
